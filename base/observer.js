@@ -42,4 +42,4 @@ const obs1 = new Observer('路人甲');
 const obs2 = new Observer('路人乙');
 sub.attach(obs1);
 sub.attach(obs2);
-sub.setState(false)
+sub.setState(true)
