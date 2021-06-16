@@ -70,7 +70,6 @@ class Promise {
         this.value = value;
         this.status = FULFILLED;
         this.onResolvedCallbacks.forEach(fn => fn())
-        console.log(this.onResolvedCallbacks, 'onResolvedCallbacks');
       }
     }
 
