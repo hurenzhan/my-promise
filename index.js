@@ -3,105 +3,6 @@ const FULFILLED = 'FULFILLED'; // 成功态
 const REJECTED = 'REJECTED'; // 失败态
 
 /**
- * @description 符合Promise/A+规范的异步处理方法
- * @class Promise
- */
-class Promise {
-  constructor(executor) {
-    this.status = PENDING;
-    this.value = undefined;
-    this.reason = undefined;
-    // 待执行成功态方法列表
-    this.onResolvedCallbacks = [];
-    // 待执行失败态方法列表
-    this.onRejectedCallbacks = [];
-
-    // 遍历执行成功列表方法
-    const resolve = value => {
-      if (this.status === PENDING) {
-        this.value = value;
-        this.status = FULFILLED;
-        this.onResolvedCallbacks.forEach(fn => fn())
-      }
-    }
-
-    // 遍历执行失败列表方法
-    const reject = reason => {
-      this.reason = reason;
-      this.status = FULFILLED;
-      this.onRejectedCallbacks.forEach(fn => fn())
-    }
-
-    try {
-      executor(resolve, reject);
-    } catch (e) {
-      reject(e);
-    }
-  }
-
-  then(onFulfilled, onRejected) {
-    // 如果传入的函数不是一个函数，让它变成一个函数
-    onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : v => v;
-    onRejected = typeof onRejected === 'function' ? onRejected : e => {
-      throw e
-    };
-
-    // 每次调用then方法 都必须返回一个全新的promise
-    const newPromise = new Promise((resolve, reject) => {
-
-      if (this.status === FULFILLED) {
-        setTimeout(() => {
-          try {
-            let fulfillResult = onFulfilled(this.value);
-            resolvePromise(fulfillResult, newPromise, resolve, reject);
-          } catch (e) {
-            reject(e);
-          }
-        })
-      }
-
-      if (this.status === REJECTED) {
-        setTimeout(() => {
-          try {
-            let rejectResult = onRejected(this.reason);
-            resolvePromise(rejectResult, newPromise, resolve, reject);
-          } catch (e) {
-            reject(e);
-          }
-        });
-      }
-
-      if (this.status === PENDING) {
-
-        this.onResolvedCallbacks.push(() => {
-          setTimeout(() => {
-            try {
-              const fulfillResult = onFulfilled(this.value);
-              resolvePromise(fulfillResult, newPromise, resolve, reject);
-            } catch (e) {
-              reject(e);
-            }
-          })
-        })
-
-        this.onRejectedCallbacks.push(() => {
-          setTimeout(() => {
-            try {
-              let rejectResult = onRejected(this.reason);
-              resolvePromise(rejectResult, newPromise, resolve, reject);
-            } catch (e) {
-              reject(e);
-            }
-          }, 0);
-        })
-      }
-    })
-
-    return newPromise;
-  }
-}
-
-/**
  *
  * @description 我们还需要考虑 fulfillResult 可能是别人的promise
  * 1.如果 fulfillResult 是一个普通值 则直接调用resolve即可
@@ -144,6 +45,135 @@ function resolvePromise(result, newPromise, resolve, reject) {
   } else {
     resolve(result) // result 是一个普通值
   }
+}
+
+/**
+ * @description 符合Promise/A+规范的异步处理方法
+ * @class Promise
+ */
+class Promise {
+  constructor(executor) {
+    this.status = PENDING;
+    this.value = undefined;
+    this.reason = undefined;
+    // 待执行成功态方法列表
+    this.onResolvedCallbacks = [];
+    // 待执行失败态方法列表
+    this.onRejectedCallbacks = [];
+
+    // 遍历执行成功列表方法
+    const resolve = value => {
+      if (value instanceof Promise) {
+        return value.then(resolve, reject); // === resolvePromise
+      }
+      if (this.status === PENDING) {
+        this.value = value;
+        this.status = FULFILLED;
+        this.onResolvedCallbacks.forEach(fn => fn())
+        console.log(this.onResolvedCallbacks, 'onResolvedCallbacks');
+      }
+    }
+
+    // 遍历执行失败列表方法
+    const reject = reason => {
+      this.reason = reason;
+      this.status = REJECTED;
+      this.onRejectedCallbacks.forEach(fn => fn())
+    }
+
+    try {
+      executor(resolve, reject);
+    } catch (e) {
+      reject(e);
+    }
+  }
+
+  then(onFulfilled, onRejected) {
+    // 如果传入的函数不是一个函数，让它变成一个函数
+    onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : v => v;
+    onRejected = typeof onRejected === 'function' ? onRejected : e => {
+      throw e
+    };
+
+    // 每次调用then方法 都必须返回一个全新的promise
+    const newPromise = new Promise((resolve, reject) => {
+
+      if (this.status === FULFILLED) {
+        setTimeout(() => {
+          try {
+            const fulfillResult = onFulfilled(this.value);
+            resolvePromise(fulfillResult, newPromise, resolve, reject);
+          } catch (e) {
+            reject(e);
+          }
+        })
+      }
+
+      if (this.status === REJECTED) {
+        setTimeout(() => {
+          try {
+            const rejectResult = onRejected(this.reason);
+            resolvePromise(rejectResult, newPromise, resolve, reject);
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+
+      if (this.status === PENDING) {
+        this.onResolvedCallbacks.push(() => {
+          setTimeout(() => {
+            try {
+              const fulfillResult = onFulfilled(this.value);
+              resolvePromise(fulfillResult, newPromise, resolve, reject);
+            } catch (e) {
+              reject(e);
+            }
+          })
+        })
+
+        this.onRejectedCallbacks.push(() => {
+          setTimeout(() => {
+            try {
+              const rejectResult = onRejected(this.reason);
+              resolvePromise(rejectResult, newPromise, resolve, reject);
+            } catch (e) {
+              reject(e);
+            }
+          }, 0);
+        })
+      }
+    })
+
+    return newPromise;
+  }
+
+  catch(fn) {
+    return this.then(null, fn);
+  }
+
+  static resolve(value) {
+    return new Promise((resolve) => {
+      resolve(value);
+    })
+  }
+
+  static reject(e) {
+    return new Promise((resolve, reject) => {
+      reject(e);
+    })
+  }
+
+}
+
+Promise.deferred = function () {
+  const dfd = {};
+  dfd.promise = new Promise((resolve, reject) => {
+    dfd.resolve = resolve;
+    dfd.reject = reject;
+  })
+
+  return dfd;
 }
 
 module.exports = Promise;
