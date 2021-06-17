@@ -4,9 +4,9 @@ const REJECTED = 'REJECTED'; // 失败态
 
 /**
  *
- * @description 我们还需要考虑 fulfillResult 可能是别人的promise
- * 1.如果 fulfillResult 是一个普通值 则直接调用resolve即可
- * 2.如果 fulfillResult 是一个promise那么应该采用这个promise的状态 决定调用的是 resolve还是reject
+ * @description 我们还需要考虑 result 可能是别人的promise
+ * 1.如果 result 是一个普通值 则直接调用resolve即可
+ * 2.如果 result 是一个promise那么应该采用这个promise的状态 决定调用的是 resolve还是reject
  * @param {*} result
  * @param {Promise} newPromise
  * @param {Function} resolve
@@ -25,7 +25,7 @@ function resolvePromise(result, newPromise, resolve, reject) {
       const then = result.then; // 尝试取then方法
       // 如果是函数，认为他是promise
       if (typeof then === 'function') {
-        then.call(result, nextResult => { // nextFulfillResult 有可能还是一个 promise ，所以要再次进行解析流程
+        then.call(result, nextResult => { // nextResult 有可能还是一个 promise ，所以要再次进行解析流程
           if (called) return;
           called = true;
           resolvePromise(nextResult, newPromise, resolve, reject)
