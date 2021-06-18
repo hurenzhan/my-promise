@@ -151,6 +151,17 @@ class Promise {
     return this.then(null, fn);
   }
 
+  finally(cb) {
+    // 内部执行then，把结果存起来
+    return this.then(prevData =>
+      // 新实例化一个promise，执行成功态并在里面执行传入函数，并把存起来的结果执行then返回出去
+      Promise.resolve(cb()).then(x => prevData),
+      // 失败也直接走成功态然后，抛出异常
+      // cb执行一旦报错 就直接跳过后续的then的逻辑，直接将错误向下传递
+      e => Promise.resolve(cb()).then(() => { throw e })
+    )
+  }
+
   static resolve(value) {
     return new Promise((resolve) => {
       resolve(value);
@@ -173,6 +184,42 @@ Promise.deferred = function () {
   })
 
   return dfd;
+}
+
+Promise.all = function (promises) {
+  return new Promise((resolve, reject) => {
+    const results = []; // 记录所有结果，因为有顺序问题，用数组下标形式
+    let index = 0;
+    // 拿到所有结果再返回
+    const process = (i, data) => {
+      results[i] = data;
+      if (++index === promises.length) {
+        resolve(results);
+      }
+    }
+    // 循环调用所有promise
+    promises.forEach((item, i) => {
+      if (item && typeof item.then === 'function') {
+        item.then(data => {
+          process(i, data);
+        }, reject)  // 如果有一个失败就直接执行失败逻辑
+      } else {
+        process(i, item)  // 不是函数当同步直接返回
+      }
+    })
+  })
+}
+
+Promise.race = function (promises) {
+  return new Promise((resolve, reject) => {
+    for (let promise of promises) {
+      if (promise && typeof promise.then === 'function') {
+        promise.then(resolve, reject);
+      } else {
+        resolve(promise);
+      }
+    }
+  })
 }
 
 module.exports = Promise;
